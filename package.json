@@ -1,0 +1,45 @@
+{
+  "name": "giveurl",
+  "version": "0.1.0",
+  "description": "Turn a local file, directory, or service into a shareable URL with zero config.",
+  "type": "module",
+  "bin": {
+    "giveurl": "./bin/giveurl.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node --check bin/giveurl.js && node --check src/*.js && node --check src/providers/*.js",
+    "test": "node --test",
+    "prepack": "npm run check && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "share",
+    "file-sharing",
+    "tailscale",
+    "cli",
+    "zero-config"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adinvadim/giveurl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adinvadim/giveurl/issues"
+  },
+  "homepage": "https://github.com/adinvadim/giveurl#readme",
+  "author": "Vadim Kostin",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
