@@ -100,6 +100,13 @@ The small skill in [`skills/share/SKILL.md`](skills/share/SKILL.md) teaches an a
 ```bash
 npm test
 npm pack --dry-run
+npm run smoke:tailscale -- --receiver root@runner
+# Or use regular SSH over a Tailscale IP:
+npm run smoke:tailscale -- --receiver-ssh mini@100.64.0.1 --identity ~/.ssh/id_ed25519
+# If the receiver intentionally has MagicDNS disabled:
+npm run smoke:tailscale -- --receiver root@runner --resolve-source
 ```
+
+The live smoke test publishes every supported MIME type, directories, concurrent shares, HTTP ports, localhost URLs, and an `https+insecure` service. With `--receiver`, every artifact is fetched from another tailnet machine over Tailscale SSH; `--receiver-ssh` supports regular SSH over a Tailscale IP. It also verifies exact bytes, content types, Range requests, nested-route cleanup, and restoration of the previous Serve configuration. `--resolve-source` preserves TLS hostname validation while routing directly to the source Tailscale IP, which is useful only when the receiver has MagicDNS intentionally disabled.
 
 The CLI uses only Node.js built-ins. Provider-specific behavior lives under `src/providers/` so new transports do not complicate the default command.

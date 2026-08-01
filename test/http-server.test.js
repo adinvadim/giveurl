@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createArtifactServer } from "../src/http-server.js";
+import { contentTypeFor, createArtifactServer } from "../src/http-server.js";
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -33,6 +33,50 @@ test("serves a shared file with its content type", async () => {
     assert.equal(range.status, 206);
     assert.equal(range.headers.get("content-range"), "bytes 0-0/8");
     assert.equal(await range.text(), "#");
+  } finally {
+    await close(server);
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("maps every documented file format and falls back for binary data", () => {
+  const expected = {
+    "file.css": "text/css; charset=utf-8",
+    "file.gif": "image/gif",
+    "file.htm": "text/html; charset=utf-8",
+    "file.html": "text/html; charset=utf-8",
+    "file.ico": "image/x-icon",
+    "file.jpeg": "image/jpeg",
+    "file.jpg": "image/jpeg",
+    "file.js": "text/javascript; charset=utf-8",
+    "file.json": "application/json; charset=utf-8",
+    "file.md": "text/markdown; charset=utf-8",
+    "file.pdf": "application/pdf",
+    "file.png": "image/png",
+    "file.svg": "image/svg+xml; charset=utf-8",
+    "file.txt": "text/plain; charset=utf-8",
+    "file.webp": "image/webp",
+    "file.xml": "application/xml; charset=utf-8",
+    "file.zip": "application/zip",
+    "file.bin": "application/octet-stream",
+  };
+  for (const [filename, contentType] of Object.entries(expected)) {
+    assert.equal(contentTypeFor(filename), contentType);
+  }
+});
+
+test("serves an empty file", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "giveurl-http-test-"));
+  const target = path.join(directory, "empty.txt");
+  writeFileSync(target, "");
+  const server = createArtifactServer({ target, kind: "file", route: "/giveurl/id/artifact.txt" });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/artifact.txt`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-length"), "0");
+    assert.equal(await response.text(), "");
   } finally {
     await close(server);
     rmSync(directory, { recursive: true, force: true });

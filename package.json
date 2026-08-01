@@ -9,13 +9,15 @@
   "files": [
     "bin",
     "src",
+    "scripts",
     "skills",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
-    "check": "node --check bin/giveurl.js && node --check src/*.js && node --check src/providers/*.js",
+    "check": "node --check bin/giveurl.js && node --check src/*.js && node --check src/providers/*.js && node --check scripts/*.js",
+    "smoke:tailscale": "node scripts/smoke-tailscale.js",
     "test": "node --test",
     "prepack": "npm run check && npm test"
   },

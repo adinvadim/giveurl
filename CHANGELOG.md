@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a cross-machine Tailscale smoke suite covering every supported MIME type, directories, concurrent routes, and localhost services.
+
 ## 0.1.0 - 2026-08-02
 
 - Add zero-config sharing for files, directories, and localhost services through Tailscale Serve.

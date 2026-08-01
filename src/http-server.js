@@ -22,6 +22,10 @@ const MIME_TYPES = new Map([
   [".zip", "application/zip"],
 ]);
 
+export function contentTypeFor(filename) {
+  return MIME_TYPES.get(path.extname(filename).toLowerCase()) ?? "application/octet-stream";
+}
+
 function escapeHtml(value) {
   return value
     .replaceAll("&", "&amp;")
@@ -43,7 +47,7 @@ function sendError(response, statusCode, message) {
 function sendFile(request, response, filename) {
   const metadata = statSync(filename);
   const headers = {
-    "content-type": MIME_TYPES.get(path.extname(filename).toLowerCase()) ?? "application/octet-stream",
+    "content-type": contentTypeFor(filename),
     "cache-control": "no-store",
     "x-content-type-options": "nosniff",
     "accept-ranges": "bytes",
