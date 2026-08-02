@@ -1,10 +1,10 @@
 {
   "name": "giveurl",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Turn a local file, directory, or service into a shareable URL with zero config.",
   "type": "module",
   "bin": {
-    "giveurl": "./bin/giveurl.js"
+    "giveurl": "bin/giveurl.js"
   },
   "files": [
     "bin",
