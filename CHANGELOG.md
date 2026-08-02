@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Normalize the npm executable path after the 0.1.0 release and prepare 0.1.1.
+- Document global `giveurl` skill installation through the Skills CLI.
 
 ## 0.1.0 - 2026-08-02
 

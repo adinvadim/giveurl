@@ -95,6 +95,12 @@ Existing Tailscale Serve handlers are preserved. Cleanup turns off the exact `/g
 
 The small `giveurl` skill in [`skills/giveurl/SKILL.md`](skills/giveurl/SKILL.md) teaches an agent when to publish, verify, consume, and stop a share. Install or link it using the skill mechanism supported by your agent harness.
 
+Install it globally with the [Skills CLI](https://www.skills.sh/docs):
+
+```bash
+npx skills add https://github.com/adinvadim/giveurl --skill giveurl -g
+```
+
 ## Development
 
 ```bash
