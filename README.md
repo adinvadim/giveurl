@@ -93,7 +93,7 @@ Existing Tailscale Serve handlers are preserved. Cleanup turns off the exact `/g
 
 ## Agent skill
 
-The small skill in [`skills/share/SKILL.md`](skills/share/SKILL.md) teaches an agent when to publish, verify, consume, and stop a share. Install or link it using the skill mechanism supported by your agent harness.
+The small `giveurl` skill in [`skills/giveurl/SKILL.md`](skills/giveurl/SKILL.md) teaches an agent when to publish, verify, consume, and stop a share. Install or link it using the skill mechanism supported by your agent harness.
 
 ## Development
 

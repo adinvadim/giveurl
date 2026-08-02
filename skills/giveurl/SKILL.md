@@ -1,9 +1,9 @@
 ---
-name: share
+name: giveurl
 description: "Share or retrieve an artifact, preview, or handoff across machines."
 ---
 
-# Share
+# Giveurl
 
 When a local file, directory, or localhost service must be opened on another machine, run:
 
