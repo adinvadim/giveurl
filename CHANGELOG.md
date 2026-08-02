@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-08-02
 
-- Normalize the npm executable path after the 0.1.0 release and prepare 0.1.1.
+- Normalize the npm executable path after the 0.1.0 release.
 - Document global `giveurl` skill installation through the Skills CLI.
 - Add GitHub CLI publishing for secret Gists with direct raw URLs, provider fallback, status discovery, and guarded cleanup.
 
