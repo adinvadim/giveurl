@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.2.0 - 2026-08-02
 
 - Normalize the npm executable path after the 0.1.0 release.
