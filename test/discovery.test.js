@@ -28,7 +28,15 @@ test("discovers installed and authenticated local providers", () => {
       ready: true,
       detail: "node.example.ts.net",
     });
-    assert.equal(detectGitHub(environment).authenticated, true);
+    assert.deepEqual(detectGitHub(environment), {
+      id: "github",
+      label: "GitHub Gists",
+      supported: true,
+      installed: true,
+      authenticated: true,
+      ready: true,
+      detail: "authenticated; UTF-8 text files ready",
+    });
     assert.equal(detectCloudflare(environment).authenticated, true);
   } finally {
     rmSync(directory, { recursive: true, force: true });

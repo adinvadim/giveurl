@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { GiveurlError, UsageError } from "./errors.js";
 import { discoverProviders } from "./providers/discovery.js";
+import { publishGitHub, statusGitHub, stopGitHub } from "./providers/github.js";
 import { publishTailscale, statusTailscale, stopTailscale } from "./providers/tailscale.js";
 
 const PACKAGE = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"));
@@ -34,8 +35,8 @@ Examples:
   npx giveurl providers
   npx giveurl stop https://node.example.ts.net/giveurl/ID/artifact.png
 
-Tailscale is supported today. GitHub Gists and Cloudflare are detected locally
-and reserved as provider names for future releases.`;
+Tailscale supports files, directories, and services. GitHub Gists support UTF-8
+text files. Cloudflare is detected locally and reserved for a future release.`;
 
 function parse(argv) {
   if (argv.includes("--help") || argv.includes("-h")) return { action: "help" };
@@ -89,11 +90,38 @@ function parse(argv) {
   return { action: "publish", target: first, ...common };
 }
 
-function selectedProvider(requested) {
-  if (requested === "auto" || requested === "tailscale") return "tailscale";
-  throw new GiveurlError(`${requested} is detected by giveurl, but publishing through it is not supported yet.`, {
+function implementedProvider(requested) {
+  if (["tailscale", "github"].includes(requested)) return requested;
+  throw new GiveurlError(`${requested} is detected by giveurl, but that provider is not supported yet.`, {
     code: "PROVIDER_NOT_IMPLEMENTED",
   });
+}
+
+function publishProvider(requested) {
+  if (requested !== "auto") return implementedProvider(requested);
+  const provider = discoverProviders().find((candidate) => candidate.supported && candidate.ready);
+  if (provider) return provider.id;
+  throw new GiveurlError("No supported provider is ready.", { code: "PROVIDER_UNAVAILABLE" });
+}
+
+function statusProviders(requested) {
+  if (requested !== "auto") return [implementedProvider(requested)];
+  const providers = discoverProviders()
+    .filter((provider) => provider.supported && provider.ready)
+    .map((provider) => provider.id);
+  if (providers.length > 0) return providers;
+  throw new GiveurlError("No supported provider is ready.", { code: "PROVIDER_UNAVAILABLE" });
+}
+
+function stopProvider(requested, rawUrl) {
+  if (requested !== "auto") return implementedProvider(requested);
+  try {
+    const hostname = new URL(rawUrl).hostname;
+    if (["gist.github.com", "gist.githubusercontent.com"].includes(hostname)) return "github";
+  } catch {
+    // Let the selected provider return the stable invalid-share error.
+  }
+  return "tailscale";
 }
 
 function printJson(value) {
@@ -122,7 +150,10 @@ function printPublish(result, json) {
   }
   process.stdout.write(`${result.url}\n`);
   const verb = result.dryRun ? "Would share" : "Shared";
-  process.stderr.write(`${verb} ${result.kind} via ${result.provider}; Tailscale access only.\n`);
+  const access = result.provider === "github"
+    ? "secret Gist; anyone with the URL can access it"
+    : "Tailscale access only";
+  process.stderr.write(`${verb} ${result.kind} via ${result.provider}; ${access}.\n`);
   if (result.dryRun) process.stderr.write(`Command: ${result.command.join(" ")}\n`);
   else process.stderr.write(`Stop with: ${result.stopCommand}\n`);
 }
@@ -195,19 +226,27 @@ export async function main(argv) {
       return 0;
     }
 
-    const provider = selectedProvider(command.provider);
-    if (provider !== "tailscale") throw new GiveurlError(`Unsupported provider: ${provider}`);
-
     if (command.action === "publish") {
-      printPublish(await publishTailscale(command.target, { dryRun: command.dryRun }), command.json);
+      const provider = publishProvider(command.provider);
+      const result = provider === "github"
+        ? await publishGitHub(command.target, { dryRun: command.dryRun })
+        : await publishTailscale(command.target, { dryRun: command.dryRun });
+      printPublish(result, command.json);
       return 0;
     }
     if (command.action === "stop") {
-      printStop(stopTailscale(command.url, { dryRun: command.dryRun }), command.json);
+      const provider = stopProvider(command.provider, command.url);
+      const result = provider === "github"
+        ? stopGitHub(command.url, { dryRun: command.dryRun })
+        : stopTailscale(command.url, { dryRun: command.dryRun });
+      printStop(result, command.json);
       return 0;
     }
     if (command.action === "status") {
-      printStatus(statusTailscale(), command.json);
+      const shares = statusProviders(command.provider).flatMap((provider) => (
+        provider === "github" ? statusGitHub() : statusTailscale()
+      ));
+      printStatus(shares, command.json);
       return 0;
     }
     throw new UsageError(`Unknown action: ${command.action}`);

@@ -49,7 +49,7 @@ export function detectTailscale(environment = process.env) {
 
 export function detectGitHub(environment = process.env) {
   const executable = findCommand("gh", environment);
-  if (!executable) return unavailable("github", "GitHub Gists", false);
+  if (!executable) return unavailable("github", "GitHub Gists", true);
   const result = runCommand(executable, ["auth", "status", "--hostname", "github.com"], {
     timeout: 5_000,
     environment,
@@ -58,11 +58,11 @@ export function detectGitHub(environment = process.env) {
   return {
     id: "github",
     label: "GitHub Gists",
-    supported: false,
+    supported: true,
     installed: true,
     authenticated,
-    ready: false,
-    detail: authenticated ? "authenticated; provider planned" : "not authenticated",
+    ready: authenticated,
+    detail: authenticated ? "authenticated; UTF-8 text files ready" : "not authenticated",
   };
 }
 

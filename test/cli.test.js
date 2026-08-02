@@ -29,6 +29,38 @@ test("prints a bare semantic version", () => {
   assert.match(execFileSync(process.execPath, [CLI, "--version"], { encoding: "utf8" }), /^\d+\.\d+\.\d+\n$/);
 });
 
+test("auto falls back to GitHub for UTF-8 files when Tailscale is unavailable", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "giveurl-cli-github-test-"));
+  const target = path.join(directory, "artifact.md");
+  const fakeGitHub = path.join(directory, "gh");
+  writeFileSync(target, "hello\n");
+  writeFileSync(fakeGitHub, `#!${process.execPath}
+const args = process.argv.slice(2);
+if (args[0] === "auth" && args[1] === "status") process.exit(0);
+if (args[0] === "api" && args[1] === "user") {
+  process.stdout.write("octocat\\n");
+  process.exit(0);
+}
+process.stderr.write("unexpected mutation");
+process.exit(9);
+`);
+  chmodSync(fakeGitHub, 0o755);
+
+  try {
+    const result = spawnSync(process.execPath, [CLI, target, "--dry-run", "--json"], {
+      encoding: "utf8",
+      env: { ...process.env, PATH: directory },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.provider, "github");
+    assert.equal(output.visibility, "secret");
+    assert.match(output.url, /^https:\/\/gist\.githubusercontent\.com\/octocat\/GIST_ID\/raw\/REVISION\/artifact\.md$/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("dry-run emits stable JSON without mutating Tailscale", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "giveurl-cli-test-"));
   const target = path.join(directory, "artifact.md");

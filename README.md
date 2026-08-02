@@ -7,7 +7,7 @@ $ npx giveurl ./report.html
 https://laptop.example.ts.net/giveurl/20260802T154500Z-a1b2c3d4e5f60708/artifact.html
 ```
 
-`giveurl` inspects providers already installed and authenticated on the current machine. Tailscale works today; GitHub Gists and Cloudflare are visible in discovery and fit behind the same provider interface as future transports.
+`giveurl` inspects providers already installed and authenticated on the current machine. Tailscale and GitHub Gists work today; Cloudflare remains visible in discovery behind the same provider interface for a future transport.
 
 ## Why
 
@@ -18,10 +18,11 @@ With Tailscale, each share gets a unique HTTPS route on the source machine. File
 ## Requirements
 
 - Node.js 20 or newer
-- Tailscale installed, signed in, and running
-- MagicDNS and HTTPS available for the tailnet
+- At least one ready provider:
+  - Tailscale installed, signed in, and running with MagicDNS and HTTPS available
+  - GitHub CLI installed and authenticated to `github.com` with the `gist` scope
 
-No runtime npm dependencies are installed.
+No runtime npm dependencies are installed. Standard `gh auth login` authentication includes the Gist scope.
 
 ## Usage
 
@@ -49,13 +50,13 @@ npx giveurl providers --json
 npx giveurl status --json
 ```
 
-Preview a change without creating a server or Tailscale route:
+Preview a change without creating a server, Tailscale route, or Gist:
 
 ```bash
 npx giveurl ./site --dry-run
 ```
 
-Shares remain available while the source machine and local backend are running. Remove only the route created for a particular URL:
+Tailscale shares remain available while the source machine and local backend are running; GitHub Gists remain hosted until deleted. Stop the share represented by a particular URL:
 
 ```bash
 npx giveurl stop https://laptop.example.ts.net/giveurl/ID/artifact.html
@@ -67,29 +68,42 @@ npx giveurl stop https://laptop.example.ts.net/giveurl/ID/artifact.html
 $ npx giveurl providers
 PROVIDER         INSTALLED  AUTHENTICATED  SUPPORT  DETAIL
 Tailscale        yes        yes            ready    laptop.example.ts.net
-GitHub Gists     yes        yes            planned  authenticated; provider planned
+GitHub Gists     yes        yes            ready    authenticated; UTF-8 text files ready
 Cloudflare       no         no             planned  not installed
 ```
 
-Provider selection defaults to `auto`. The provider name can be pinned for reproducible automation:
+Provider selection defaults to `auto`, preferring Tailscale when it is ready and falling back to GitHub for compatible files. The provider name can be pinned for reproducible automation:
 
 ```bash
 npx giveurl ./report.html --provider tailscale
+npx giveurl ./report.md --provider github
 ```
 
 Current provider status:
 
 | Provider | Discovery | Publishing |
 | --- | --- | --- |
-| Tailscale | `tailscale status --json` | Supported |
-| GitHub Gists | `gh auth status` | Planned |
+| Tailscale | `tailscale status --json` | Files, directories, and localhost services |
+| GitHub Gists | `gh auth status` | UTF-8 text files up to 10 MB |
 | Cloudflare | `wrangler whoami` | Planned |
+
+## GitHub Gists
+
+The GitHub provider creates a secret Gist and prints the direct raw file URL rather than the Gist HTML page:
+
+```bash
+npx giveurl ./report.md --provider github
+```
+
+GitHub Gists support one UTF-8 text file per share. Binary files, directories, and localhost services require Tailscale. `giveurl status` recognizes only Gists carrying its internal description marker, and `giveurl stop <url>` verifies the account, marker, and unmodified page or raw URL before deleting the Gist.
 
 ## Security and lifetime
 
 `giveurl` does not make Tailscale shares public to the internet. Any tailnet peer permitted by your Tailscale policy may be able to read the shared route, so publish the narrowest useful file or directory. Filesystem shares start a detached loopback server and persist across terminal sessions until `giveurl stop` is run or the source machine restarts.
 
-Existing Tailscale Serve handlers are preserved. Cleanup turns off the exact `/giveurl/<id>` route and its matching loopback process rather than resetting the machine's Serve configuration.
+A secret GitHub Gist is unlisted, not private: anyone who receives its URL can read it. GitHub hosts the file after the source machine goes offline, and the share remains available until `giveurl stop` deletes the Gist or it is deleted through GitHub.
+
+Existing Tailscale Serve handlers are preserved. Cleanup turns off the exact `/giveurl/<id>` route and its matching loopback process rather than resetting the machine's Serve configuration. GitHub cleanup deletes only a Gist that belongs to the authenticated account and carries the `giveurl` marker.
 
 ## Agent skill
 

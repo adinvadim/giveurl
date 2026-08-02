@@ -3,7 +3,8 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { collectRoutes, createRoute, resolveTarget } from "../src/providers/tailscale.js";
+import { collectRoutes, createRoute } from "../src/providers/tailscale.js";
+import { resolveTarget } from "../src/target.js";
 
 test("collects only giveurl handlers from Tailscale status", () => {
   assert.deepEqual(collectRoutes({

@@ -15,4 +15,4 @@ Return or consume the `url` from stdout. Verify the intended resource responds w
 
 Share a single file for exact bytes. Share the narrowest containing directory when HTML or Markdown depends on relative assets, then append the artifact's relative path to the returned directory URL. This composes with screenshot, teach, and handoff workflows.
 
-The source machine must remain online. When the consumer is finished, run `npx --yes giveurl stop <url>` on that source machine. Use `npx --yes giveurl status --json` to inspect active shares.
+Tailscale shares require the source machine to remain online; GitHub Gist shares remain hosted after it goes offline. When the consumer is finished, run `npx --yes giveurl stop <url>` from the Tailscale source machine or the GitHub account that created the Gist. Use `npx --yes giveurl status --json` to inspect active shares.
