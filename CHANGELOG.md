@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add explicit `--provider vercel` for public, anonymous temporary file and directory deployments, with isolated CLI state, expiry and private claim links, dry runs, and guarded login fallback; anonymous listing and early deletion remain unsupported.
+
 ## 0.2.0 - 2026-08-02
 
 - Normalize the npm executable path after the 0.1.0 release.

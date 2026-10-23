@@ -23,10 +23,11 @@ export function findCommand(name, environment = process.env) {
   return null;
 }
 
-export function runCommand(command, args, { timeout = 10_000, environment = process.env, input } = {}) {
+export function runCommand(command, args, { timeout = 10_000, environment = process.env, input, cwd } = {}) {
   const result = spawnSync(command, args, {
     encoding: "utf8",
     env: environment,
+    cwd,
     input,
     maxBuffer: 4 * 1024 * 1024,
     timeout,

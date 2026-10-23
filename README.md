@@ -7,7 +7,7 @@ $ npx giveurl ./report.html
 https://laptop.example.ts.net/giveurl/20260802T154500Z-a1b2c3d4e5f60708/artifact.html
 ```
 
-`giveurl` inspects providers already installed and authenticated on the current machine. Tailscale and GitHub Gists work today; Cloudflare remains visible in discovery behind the same provider interface for a future transport.
+`giveurl` inspects providers already installed on the current machine. Tailscale and GitHub Gists use existing authentication. Vercel offers public temporary deployments without login when explicitly selected. Cloudflare remains visible in discovery for a future transport.
 
 ## Why
 
@@ -21,6 +21,7 @@ With Tailscale, each share gets a unique HTTPS route on the source machine. File
 - At least one ready provider:
   - Tailscale installed, signed in, and running with MagicDNS and HTTPS available
   - GitHub CLI installed and authenticated to `github.com` with the `gist` scope
+  - A current Vercel CLI with `deploy --temporary` support (no login required; choose `--provider vercel`)
 
 No runtime npm dependencies are installed. Standard `gh auth login` authentication includes the Gist scope.
 
@@ -50,13 +51,13 @@ npx giveurl providers --json
 npx giveurl status --json
 ```
 
-Preview a change without creating a server, Tailscale route, or Gist:
+Preview a change without publishing:
 
 ```bash
 npx giveurl ./site --dry-run
 ```
 
-Tailscale shares remain available while the source machine and local backend are running; GitHub Gists remain hosted until deleted. Stop the share represented by a particular URL:
+Tailscale shares remain available while the source machine and local backend are running; GitHub Gists remain hosted until deleted. Stop a Tailscale or GitHub share represented by a particular URL:
 
 ```bash
 npx giveurl stop https://laptop.example.ts.net/giveurl/ID/artifact.html
@@ -72,11 +73,12 @@ GitHub Gists     yes        yes            ready    authenticated; UTF-8 text fi
 Cloudflare       no         no             planned  not installed
 ```
 
-Provider selection defaults to `auto`, preferring Tailscale when it is ready and falling back to GitHub for compatible files. The provider name can be pinned for reproducible automation:
+Provider selection defaults to `auto`, preferring Tailscale when it is ready and falling back to GitHub for compatible files. Vercel is selected explicitly because its deployments are public. The provider name can be pinned for reproducible automation:
 
 ```bash
 npx giveurl ./report.html --provider tailscale
 npx giveurl ./report.md --provider github
+npx giveurl ./site --provider vercel
 ```
 
 Current provider status:
@@ -85,6 +87,7 @@ Current provider status:
 | --- | --- | --- |
 | Tailscale | `tailscale status --json` | Files, directories, and localhost services |
 | GitHub Gists | `gh auth status` | UTF-8 text files up to 10 MB |
+| Vercel temporary | `vercel deploy --help` | Files and directories, public, without login; explicit selection |
 | Cloudflare | `wrangler whoami` | Planned |
 
 ## GitHub Gists
@@ -95,7 +98,29 @@ The GitHub provider creates a secret Gist and prints the direct raw file URL rat
 npx giveurl ./report.md --provider github
 ```
 
-GitHub Gists support one UTF-8 text file per share. Binary files, directories, and localhost services require Tailscale. `giveurl status` recognizes only Gists carrying its internal description marker, and `giveurl stop <url>` verifies the account, marker, and unmodified page or raw URL before deleting the Gist.
+GitHub Gists support one UTF-8 text file per share. Use Tailscale or Vercel for binary files and directories, and Tailscale for localhost services. `giveurl status` recognizes only Gists carrying its internal description marker, and `giveurl stop <url>` verifies the account, marker, and unmodified page or raw URL before deleting the Gist.
+
+## Vercel temporary deployments
+
+Install a current [Vercel CLI](https://vercel.com/docs/cli) that supports `deploy --temporary` (verified with 65.2.0), then publish:
+
+```bash
+npm install -g vercel
+npx giveurl ./site --provider vercel --json
+npx giveurl ./report.html --provider vercel --dry-run --json
+```
+
+This runs `vercel deploy --temporary --yes --json --non-interactive` on a disposable copy, with isolated global configuration and Vercel credential/project environment variables removed. It creates a new anonymous project even when your normal CLI is logged in or your source directory is linked to Vercel. A single HTML file becomes `index.html`; other single files retain exact bytes under an `artifact` filename. Directories retain their relative paths. Localhost services are unsupported. Projects with a build are built locally by Vercel CLI; their build commands run on the source machine.
+
+The copy excludes `.env*`, `.npmrc`, `.yarnrc.yml`, `.ssh`, `.aws`, `.git`, `.vercel`, and `node_modules` at every depth; symlinks and special files are rejected. Publish only a narrow directory containing material intended for public access. The source directory and its existing provider links remain untouched; staging files and anonymous CLI credentials are removed after the attempt.
+
+JSON retains the usual `url`, `provider`, `kind`, and `target` fields and adds `temporary: true`, `visibility: "public"`, `previewUrl`, `claimUrl`, and `expiresAt` (Unix milliseconds). The share stays online after the source computer disconnects and expires at the time returned by Vercel. Keep `claimUrl` private: it lets you transfer the project to your Vercel account and keep or manage it. Human output prints only the artifact URL to stdout; expiry and claim instructions go to stderr.
+
+Anonymous deployments have no supported listing or early deletion through giveurl. `status --provider vercel` and `stop <vercel-url>` return `PROVIDER_UNSUPPORTED_ACTION`; automatic status continues to list Tailscale/Gist shares. `stopCommand` is `null`. Claim the project to manage it earlier, or let it expire. No fixed lifetime is assumed.
+
+Vercel may reject anonymous creation based on availability or eligibility. Giveurl reports the failure and stops the CLI's login fallback instead of waiting for authorization or switching to a deployment in your account. The retired claimable-deploy HTTP endpoints are not used.
+
+Local provider tests cover the temporary-deploy JSON contract, credential isolation, upload exclusions, exact bytes, dry runs, cleanup, and CLI routing. Live verification on 2026-10-23 reached Vercel's anonymous-project endpoint with CLI 65.2.0, which returned HTTP 403; a successful public deployment remains unverified from this environment.
 
 ## Security and lifetime
 
