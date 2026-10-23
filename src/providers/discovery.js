@@ -84,10 +84,27 @@ export function detectCloudflare(environment = process.env) {
   };
 }
 
+export function detectVercel(environment = process.env) {
+  const executable = findCommand("vercel", environment);
+  if (!executable) return unavailable("vercel", "Vercel temporary", true);
+  const result = runCommand(executable, ["deploy", "--help"], { timeout: 10_000, environment });
+  const ready = [0, 2].includes(result.exitCode) && `${result.stdout}\n${result.stderr}`.includes("--temporary");
+  return {
+    id: "vercel",
+    label: "Vercel temporary",
+    supported: true,
+    installed: true,
+    authenticated: false,
+    ready,
+    detail: ready ? "public temporary deployments; no login required; explicit --provider vercel" : "update Vercel CLI for deploy --temporary",
+  };
+}
+
 export function discoverProviders(environment = process.env) {
   return [
     detectTailscale(environment),
     detectGitHub(environment),
+    detectVercel(environment),
     detectCloudflare(environment),
   ];
 }

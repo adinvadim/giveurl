@@ -5,9 +5,10 @@ import { GiveurlError, UsageError } from "./errors.js";
 import { discoverProviders } from "./providers/discovery.js";
 import { publishGitHub, statusGitHub, stopGitHub } from "./providers/github.js";
 import { publishTailscale, statusTailscale, stopTailscale } from "./providers/tailscale.js";
+import { publishVercel, statusVercel, stopVercel } from "./providers/vercel.js";
 
 const PACKAGE = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"));
-const PROVIDERS = new Set(["auto", "tailscale", "github", "cloudflare"]);
+const PROVIDERS = new Set(["auto", "tailscale", "github", "vercel", "cloudflare"]);
 
 const HELP = `giveurl — turn something local into a URL
 
@@ -21,7 +22,7 @@ Targets:
   A file, a directory, a localhost URL, or a port number.
 
 Options:
-  --provider <name>  Use auto, tailscale, github, or cloudflare (default: auto)
+  --provider <name>  Use auto, tailscale, github, vercel, or cloudflare (default: auto)
   -n, --dry-run      Show what would change without publishing or stopping
   --json             Print stable machine-readable JSON
   --no-input         Never prompt (currently the default behavior)
@@ -31,12 +32,15 @@ Options:
 Examples:
   npx giveurl screenshot.png
   npx giveurl ./site --json
+  npx giveurl ./site --provider vercel --json
   npx giveurl http://127.0.0.1:3000
   npx giveurl providers
   npx giveurl stop https://node.example.ts.net/giveurl/ID/artifact.png
 
 Tailscale supports files, directories, and services. GitHub Gists support UTF-8
-text files. Cloudflare is detected locally and reserved for a future release.`;
+text files. Vercel publishes public temporary files and directories without login
+(explicit --provider vercel only); claimUrl keeps them, expiresAt ends them.
+Cloudflare is detected locally and reserved for a future release.`;
 
 function parse(argv) {
   if (argv.includes("--help") || argv.includes("-h")) return { action: "help" };
@@ -61,7 +65,7 @@ function parse(argv) {
 
   const provider = parsed.values.provider;
   if (!PROVIDERS.has(provider)) {
-    throw new UsageError(`Unknown provider: ${provider}. Use auto, tailscale, github, or cloudflare.`);
+    throw new UsageError(`Unknown provider: ${provider}. Use auto, tailscale, github, vercel, or cloudflare.`);
   }
   const common = {
     provider,
@@ -91,7 +95,7 @@ function parse(argv) {
 }
 
 function implementedProvider(requested) {
-  if (["tailscale", "github"].includes(requested)) return requested;
+  if (["tailscale", "github", "vercel"].includes(requested)) return requested;
   throw new GiveurlError(`${requested} is detected by giveurl, but that provider is not supported yet.`, {
     code: "PROVIDER_NOT_IMPLEMENTED",
   });
@@ -99,7 +103,7 @@ function implementedProvider(requested) {
 
 function publishProvider(requested) {
   if (requested !== "auto") return implementedProvider(requested);
-  const provider = discoverProviders().find((candidate) => candidate.supported && candidate.ready);
+  const provider = discoverProviders().find((candidate) => candidate.id !== "vercel" && candidate.supported && candidate.ready);
   if (provider) return provider.id;
   throw new GiveurlError("No supported provider is ready.", { code: "PROVIDER_UNAVAILABLE" });
 }
@@ -107,7 +111,7 @@ function publishProvider(requested) {
 function statusProviders(requested) {
   if (requested !== "auto") return [implementedProvider(requested)];
   const providers = discoverProviders()
-    .filter((provider) => provider.supported && provider.ready)
+    .filter((provider) => provider.id !== "vercel" && provider.supported && provider.ready)
     .map((provider) => provider.id);
   if (providers.length > 0) return providers;
   throw new GiveurlError("No supported provider is ready.", { code: "PROVIDER_UNAVAILABLE" });
@@ -118,6 +122,7 @@ function stopProvider(requested, rawUrl) {
   try {
     const hostname = new URL(rawUrl).hostname;
     if (["gist.github.com", "gist.githubusercontent.com"].includes(hostname)) return "github";
+    if ([".vercel.app", ".tmp.now"].some(suffix => hostname.endsWith(suffix))) return "vercel";
   } catch {
     // Let the selected provider return the stable invalid-share error.
   }
@@ -152,10 +157,12 @@ function printPublish(result, json) {
   const verb = result.dryRun ? "Would share" : "Shared";
   const access = result.provider === "github"
     ? "secret Gist; anyone with the URL can access it"
-    : "Tailscale access only";
+    : result.provider === "vercel" ? "public temporary deployment" : "Tailscale access only";
   process.stderr.write(`${verb} ${result.kind} via ${result.provider}; ${access}.\n`);
   if (result.dryRun) process.stderr.write(`Command: ${result.command.join(" ")}\n`);
-  else process.stderr.write(`Stop with: ${result.stopCommand}\n`);
+  else if (result.provider === "vercel") {
+    process.stderr.write(`Expires: ${new Date(result.expiresAt).toISOString()}\nClaim to keep or manage it (keep this link private): ${result.claimUrl}\n`);
+  } else process.stderr.write(`Stop with: ${result.stopCommand}\n`);
 }
 
 function printStop(result, json) {
@@ -230,7 +237,8 @@ export async function main(argv) {
       const provider = publishProvider(command.provider);
       const result = provider === "github"
         ? await publishGitHub(command.target, { dryRun: command.dryRun })
-        : await publishTailscale(command.target, { dryRun: command.dryRun });
+        : provider === "vercel" ? await publishVercel(command.target, { dryRun: command.dryRun })
+          : await publishTailscale(command.target, { dryRun: command.dryRun });
       printPublish(result, command.json);
       return 0;
     }
@@ -238,13 +246,14 @@ export async function main(argv) {
       const provider = stopProvider(command.provider, command.url);
       const result = provider === "github"
         ? stopGitHub(command.url, { dryRun: command.dryRun })
-        : stopTailscale(command.url, { dryRun: command.dryRun });
+        : provider === "vercel" ? stopVercel()
+          : stopTailscale(command.url, { dryRun: command.dryRun });
       printStop(result, command.json);
       return 0;
     }
     if (command.action === "status") {
       const shares = statusProviders(command.provider).flatMap((provider) => (
-        provider === "github" ? statusGitHub() : statusTailscale()
+        provider === "github" ? statusGitHub() : provider === "vercel" ? statusVercel() : statusTailscale()
       ));
       printStatus(shares, command.json);
       return 0;

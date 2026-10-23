@@ -1,0 +1,1 @@
+- Add explicit `--provider vercel` for public temporary file and directory deployments without login, including expiry, private claim links, isolated CLI state, dry runs, and clear lifecycle limitations.
