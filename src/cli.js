@@ -122,7 +122,7 @@ function stopProvider(requested, rawUrl) {
   try {
     const hostname = new URL(rawUrl).hostname;
     if (["gist.github.com", "gist.githubusercontent.com"].includes(hostname)) return "github";
-    if (hostname.endsWith(".vercel.app")) return "vercel";
+    if ([".vercel.app", ".tmp.now"].some(suffix => hostname.endsWith(suffix))) return "vercel";
   } catch {
     // Let the selected provider return the stable invalid-share error.
   }

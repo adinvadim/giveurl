@@ -59,7 +59,7 @@ function deploymentResult(stdout) {
     deployment = payload.deployment ?? payload;
     const url = new URL(deployment.url);
     const claimUrl = new URL(deployment.claimUrl);
-    if (url.protocol !== "https:" || !url.hostname.endsWith(".vercel.app")
+    if (url.protocol !== "https:" || ![".vercel.app", ".tmp.now"].some(suffix => url.hostname.endsWith(suffix))
       || url.username || url.password || url.search || url.hash
       || claimUrl.protocol !== "https:" || claimUrl.hostname !== "vercel.com"
       || claimUrl.username || claimUrl.password
@@ -166,7 +166,7 @@ export async function publishVercel(rawTarget, { dryRun = false, environment = p
   const result = {
     dryRun, provider: "vercel", kind: resolved.kind, target: resolved.target,
     visibility: "public", temporary: true, transport: "vercel-temporary",
-    url: `https://DEPLOYMENT.vercel.app${leaf}`, stopCommand: null, command,
+    url: `https://DEPLOYMENT.tmp.now${leaf}`, stopCommand: null, command,
   };
   if (dryRun) return { ...result, files };
 

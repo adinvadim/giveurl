@@ -120,7 +120,7 @@ Anonymous deployments have no supported listing or early deletion through giveur
 
 Vercel may reject anonymous creation based on availability or eligibility. Giveurl reports the failure and stops the CLI's login fallback instead of waiting for authorization or switching to a deployment in your account. The retired claimable-deploy HTTP endpoints are not used.
 
-Local provider tests cover the temporary-deploy JSON contract, credential isolation, upload exclusions, exact bytes, dry runs, cleanup, and CLI routing. Live verification on 2026-10-23 reached Vercel's anonymous-project endpoint with CLI 65.2.0, which returned HTTP 403; a successful public deployment remains unverified from this environment.
+Local provider tests cover the temporary-deploy JSON contract, credential isolation, upload exclusions, exact bytes, dry runs, cleanup, and CLI routing. Vercel currently returns `*.tmp.now` for native temporary deployments; `*.vercel.app` responses are also accepted. Live verification on 2026-10-23 with CLI 65.2.0 deployed from a Linux VPS and fetched HTML, relative CSS, and exact binary bytes; an excluded `.envrc` fixture returned HTTP 404. The MacBook received HTTP 403 from Vercel for both anonymous creation and preview access, so availability can differ between environments even for a successfully created deployment.
 
 ## Security and lifetime
 

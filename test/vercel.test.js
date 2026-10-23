@@ -47,9 +47,11 @@ if (${JSON.stringify(mode)} === "slow") {
   process.exit(1);
 } else {
   const deployment = {url: "https://temporary-example.vercel.app", claimUrl: "https://vercel.com/claim-deployment?code=fixture", expiresAt: Date.now() + 3600000};
+  if (${JSON.stringify(mode)} === "native") deployment.url = "https://temporary-example.tmp.now";
+  if (${JSON.stringify(mode)} === "spoofed") deployment.url = "https://temporary-example.tmp.now.attacker.test";
   if (${JSON.stringify(mode)} === "invalid") delete deployment.claimUrl;
   if (${JSON.stringify(mode)} === "authenticated") {delete deployment.claimUrl; delete deployment.expiresAt;}
-  process.stdout.write(JSON.stringify(${JSON.stringify(mode)} === "envelope" ? {status: "ok", deployment} : deployment));
+  process.stdout.write(JSON.stringify(["envelope", "native"].includes(${JSON.stringify(mode)}) ? {status: "ok", deployment} : deployment));
 }
 `, { mode: 0o755 });
   return {
@@ -187,7 +189,7 @@ test("rejects services, secret targets, nested symlinks, and outdated CLIs befor
   assert.deepEqual(old.calls(), []);
 });
 
-for (const mode of ["failure", "invalid", "authenticated", "login"]) {
+for (const mode of ["failure", "invalid", "authenticated", "login", "spoofed"]) {
   test(`cleans staging after ${mode} and refuses login or ordinary deployments`, async t => {
     const f = fixture(t, mode);
     writeFileSync(path.join(f.target, "index.html"), "hello");
@@ -197,6 +199,17 @@ for (const mode of ["failure", "invalid", "authenticated", "login"]) {
     assert.equal(existsSync(f.calls()[0].args[1]), false);
   });
 }
+
+test("accepts native Vercel temporary domains and routes their lifecycle correctly", async t => {
+  const f = fixture(t, "native");
+  writeFileSync(path.join(f.target, "index.html"), "hello");
+  const result = await publishVercel(f.target, { environment: f.environment });
+  assert.equal(result.url, "https://temporary-example.tmp.now/");
+  assert.equal(result.previewUrl, "https://temporary-example.tmp.now");
+  const cli = new URL("../bin/giveurl.js", import.meta.url);
+  const stop = spawnSync(process.execPath, [cli.pathname, "stop", result.url, "--json"], { env: f.environment, encoding: "utf8" });
+  assert.equal(JSON.parse(stop.stderr).error.code, "PROVIDER_UNSUPPORTED_ACTION");
+});
 
 test("CLI supports explicit Vercel, preserves URL stdout, and never selects public temporary deploys automatically", t => {
   const f = fixture(t);
